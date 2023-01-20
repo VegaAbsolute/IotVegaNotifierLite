@@ -157,6 +157,27 @@ function parseReason(typeDev,version,reason,channel)
       if ( reason == 5 ) return 'Отклонение температуры';
     }
   }
+  else if ( typeDev == 'si11rev2' )
+  {
+    if ( reason === 0 || reason === '0' ) return 'По времени';
+    else if ( reason === 1 ) return 'Сработал охранный вход 1';
+    else if ( reason === 2 ) return 'Сработал охранный вход 2';
+    else if ( reason === 3 ) return 'Сработал охранный вход 3';
+    else if ( reason === 4 ) return 'Сработал охранный вход 4';
+  }
+  else if ( typeDev == 'si12rev2' )
+  {
+    if ( reason === 0 || reason === '0' ) return 'По времени';
+    else if ( reason === 1 ) return 'Сработал охранный вход 1';
+    else if ( reason === 2 ) return 'Сработал охранный вход 2';
+    else if ( reason === 3 ) return 'Сработал охранный вход 3';
+    else if ( reason === 4 ) return 'Сработал охранный вход 4';
+    else if ( reason === 5 ) return 'Превышен порог на импульсном входе 1';
+    else if ( reason === 6 ) return 'Превышен порог на импульсном входе 2';
+    else if ( reason === 7 ) return 'Превышен порог на импульсном входе 3';
+    else if ( reason === 8 ) return 'Превышен порог на импульсном входе 4';
+    else if ( reason === 9 ) return 'По запросу';
+  }
   else if ( typeDev == 'tp11' )
   {
     if ( reason === 0 || reason === '0' ) return 'По времени';
@@ -899,18 +920,35 @@ function rx(obj)
             {
               channel = dev.get_channel(numChannel);
               let validChannel = dataDevice.isObject(channel) && channel.num_channel!==undefined && channel.name!==undefined;
-              if ( validChannel && dataDevice.type_package == 2 )
+              if ( dev.version >= 2 )
               {
-                dev.lastDateSMS = currentDate;
-                let currentSensor = dataDevice.sensors['sensor_'+numChannel];
-                otherInfo.reasonText = currentSensor == 1 ? 'Был замкнут вход' : 'Был разомкнут вход';
-                otherInfo.num = numChannel;
-                otherInfo.value = currentSensor;
-                wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
+                if(dataDevice.port == 2)
+                {
+                  dev.lastDateSMS = currentDate;
+                  let currentSensor = dataDevice.sensors['sensor_'+numChannel];
+                  otherInfo.reasonText += parseReason('si11rev2', dev.version, dataDevice.reason, channel)+'. ';
+                  otherInfo.num = numChannel;
+                  otherInfo.value = currentSensor;
+                  wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
+                }
               }
+              else
+              {
+                if ( validChannel && dataDevice.type_package == 2 )
+                {
+                  dev.lastDateSMS = currentDate;
+                  let currentSensor = dataDevice.sensors['sensor_'+numChannel];
+                  otherInfo.reasonText = currentSensor == 1 ? 'Был замкнут вход' : 'Был разомкнут вход';
+                  otherInfo.num = numChannel;
+                  otherInfo.value = currentSensor;
+                  wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
+                }
+              }
+              
             }
             break;
           }
+          // otherInfo.reasonText += parseReason('gm2', dev.version, dataDevice.reason, channel)+'. ';
           case 2:
           {
             if ( config.debugMOD ) 
@@ -930,7 +968,19 @@ function rx(obj)
             {
               channel = dev.get_channel(numChannel);
               let validChannel = dataDevice.isObject(channel) && channel.num_channel!==undefined && channel.name!==undefined;
-              if ( validChannel && dataDevice.type_package == 2 )
+              if ( dev.version >= 2 )
+              {
+                if(dataDevice.port == 2)
+                {
+                  dev.lastDateSMS = currentDate;
+                  let currentSensor = dataDevice.sensors['sensor_'+numChannel];
+                  otherInfo.reasonText += parseReason('si12rev2', dev.version, dataDevice.reason, channel)+'. ';
+                  otherInfo.num = numChannel;
+                  otherInfo.value = currentSensor;
+                  wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
+                }
+              }
+              else if ( validChannel && dataDevice.type_package == 2 )
               {
                 dev.lastDateSMS = currentDate;
                 let currentSensor = dataDevice.sensors['sensor_'+numChannel];

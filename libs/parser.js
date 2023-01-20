@@ -1,5 +1,5 @@
-//parser.js version 1.1.6b
-//Соответствует pulse v 1.1.12b
+//parser.js version 1.1.7b
+//Соответствует pulse v 1.1.14b
 //Идентичен классу Parser из vega_parser.js iotvega pulse
 class Parser
 {
@@ -10,6 +10,7 @@ class Parser
         this.hex;
         this.hex_array;
         this.charge;
+        this.charge2;
         this.switch_device = new Array();
         this.time;
         this.temperature;
@@ -32,6 +33,7 @@ class Parser
         this.event;
         this.state;
         this.type_in;
+        this.type2;
         this.result;
         this.sensor_rate_0;
         this.sensor_rate_1;
@@ -762,6 +764,59 @@ class Parser
             return false;
         }
     }
+    _set_state_si12(b)
+    {
+        var bits = parseInt(this.hex_array[b],16).toString(2).split('').reverse();
+        this['sensor_out_1'] = bits[0] == 1 ? true : false;
+        this['sensor_out_2'] = bits[1] == 1 ? true : false;
+        this.state_energy = bits[3] == 1 ? true : false;
+        return true;
+    }
+    _set_switch_settings_device(b)
+    {
+        var bits = parseInt(this.hex_array[b],16).toString(2).split('').reverse();
+        
+        this.state_ack = bits[0]==1 ? true : false;
+
+        var bitPeriod1 =  bits[1] !== undefined ? bits[1].toString() : '0'; 
+        var bitPeriod2 =  bits[2] !== undefined ? bits[2].toString() : '0';
+        var bitPeriod3 =  bits[3] !== undefined ? bits[3].toString() : '0';
+        var period = bitPeriod1 + bitPeriod2 + bitPeriod3;
+        switch (period) {
+            case '000':
+                this.period_connect_minute = 5;
+                break;
+            case '100':
+                this.period_connect_minute = 15;
+                break;
+            case '010':
+                this.period_connect_minute = 30;
+                break;
+            case '110':
+                this.period_connect_minute = 60;
+            break;
+            case '111':
+                this.period_connect_minute = 240;
+                break;
+            case '001':
+                this.period_connect_minute = 360;
+                break;
+            case '101':
+                this.period_connect_minute = 720;
+                break;
+            case '011':
+                this.period_connect_minute = 1440;
+                break;
+            default:
+                
+                break;
+        }
+        this.mode_sensor_1 = bits[4]==1 ? 'security' : 'impulse';
+        this.mode_sensor_1 = bits[5]==1 ? 'security' : 'impulse';
+        this.mode_sensor_1 = bits[6]==1 ? 'security' : 'impulse';
+        this.mode_sensor_1 = bits[7]==1 ? 'security' : 'impulse';
+        return true;
+    }
     _set_switch_device_smart()
     {
         try
@@ -1029,6 +1084,18 @@ class Parser
             return false;
         }
     }
+    _set_switch_device_u(b)
+    {
+        try
+        {
+            this.switch_device=parseInt(this.hex_array[b],16).toString(2).split('' ).reverse().splice(0,6);
+            return true;
+        }
+        catch(err)
+        {
+            return false;
+        }
+    }
     _set_switch_device()
     {
         try
@@ -1198,6 +1265,43 @@ class Parser
                     var temperature = this._get_universal_float_negative([i,i+1],10);
                     num_temperature++;
                     this[`temperature_1wire_${num_temperature}`] = temperature;
+                }
+            }
+            return true;
+        }
+        catch(e)
+        {
+            return false;
+        }
+    }
+    _set_1wire2(begin,end)
+    {
+        if( end === undefined ) end = this.hex_array.length-1;
+        try
+        {
+           // var num_temperature = 0;
+            for( var i = begin; i<=end; i = i + 2 )
+            {
+                var b1 = this.hex_array[i+1];
+                var b2 = this.hex_array[i];
+                var valid_b1 = typeof b1 === 'string' && b1.length === 2;
+                var valid_b2 = typeof b2 === 'string' && b2.length === 2;
+                if( valid_b1 && valid_b2 )
+                {
+                    
+                    var binB1 =  parseInt(b1,16).toString(2).split('');
+                    while ( binB1.length < 8 ) binB1.unshift('0');
+                    var binB2 =  parseInt(b2,16).toString(2).split('');
+                    while ( binB2.length < 8 ) binB2.unshift('0');
+                    var bin = binB1.concat(binB2) ;
+                    var num_temperatureBin = bin.slice(0,5).join('');
+                    var temperatureBin = bin.slice(5,16).join('');
+                    var num_temperature = parseInt(num_temperatureBin,2);
+                    var temperature = (parseInt(temperatureBin,2)-600)/10;
+                    this[`temperature_1wire_${num_temperature}`] = temperature;
+                    // var temperature = this._get_universal_float_negative([i,i+1],10);
+                    // num_temperature++;
+                    // this[`temperature_1wire_${num_temperature}`] = temperature;
                 }
             }
             return true;
@@ -2280,7 +2384,54 @@ class Parser
          }
          return true;
     }
-
+    si_12_package_1_rev2()
+    {
+        var res = true;
+        res = res && this._set_universal_int( [0],'reason' );
+        res = res && this._set_universal_int( [1],'charge' );
+        res = res && this._set_switch_settings_device(2);
+        res = res && this._set_time(3,4,5,6);
+        res = res && this._set_universal_float_negative( [7],1,'temperature' );
+        res = res && this._set_universal_int( [8,9,10,11],'sensor_1' );
+        res = res && this._set_universal_int( [12,13,14,15],'sensor_2' );
+        res = res && this._set_universal_int( [16,17,18,19],'sensor_3' );
+        res = res && this._set_universal_int( [20,21,22,23],'sensor_4' );
+        this.sensors.sensor_1=this.sensor_1;
+        this.sensors.sensor_2=this.sensor_2;
+        this.sensors.sensor_3=this.sensor_3;
+        this.sensors.sensor_4=this.sensor_4;
+        res = res && this._set_state_si12(24);
+        return res;
+    }
+    si_12_package_5_rev2()
+    {
+        var res = true;
+        res = res && this._set_universal_int( [0],'reason' );
+        res = res && this._set_universal_int( [1],'charge' );
+        res = res && this._set_switch_settings_device(2);
+        res = res && this._set_time(3,4,5,6);
+        res = res && this._set_universal_float_negative( [7],1,'temperature' );
+        res = res && this._set_state_si12(8);
+        return res;
+    }
+    si_11_package_rev2 ()
+    {
+        var res = true;
+        res = res && this._set_universal_int( [0],'reason' );
+        res = res && this._set_universal_int( [1],'charge' );
+        res = res && this._set_time(2,3,4,5);
+        res = res && this._set_universal_float_negative( [6],1,'temperature' );
+        res = res && this._set_universal_int( [7,8,9,10],'sensor_1' );
+        res = res && this._set_universal_int( [11,12,13,14],'sensor_2' );
+        res = res && this._set_universal_int( [15,16,17,18],'sensor_3' );
+        res = res && this._set_universal_int( [19,20,21,22],'sensor_4' );
+        this.sensors.sensor_1=this.sensor_1;
+        this.sensors.sensor_2=this.sensor_2;
+        this.sensors.sensor_3=this.sensor_3;
+        this.sensors.sensor_4=this.sensor_4;
+        res = res && this._set_switch_device_u(23);
+        return res;
+    }
     si_21_or_22_package_rev3()
     {
         var res = true;
@@ -2340,7 +2491,20 @@ class Parser
         res = res && this._set_universal_int( [20,19,18,17],'count_package' );
         return res;
     }
-
+    package_195_rev3()
+    {
+        var res = true;
+        res = res && this._set_universal_int( [1],'reason' );
+        res = res && this._set_universal_string_ASCII(2,17,'info_radiomodule');
+        res = res && this._set_universal_string_ASCII(18,33,'model');
+        res = res && this._set_universal_int( [37,36,35,34],'release_date' );
+        res = res && this._set_version( [39,38],'version_module_electronic' );
+        res = res && this._set_version( [40,41],'version_soft_device' );
+        res = res && this._set_version( [42,43],'version_parameterization' );
+        res = res && this._set_universal_int( [44],'charge' );
+        res = res && this._set_universal_int( [48,47,46,45],'count_package' );
+        return res;
+    }
 
     si_22_package_1()
     {
@@ -2398,6 +2562,43 @@ class Parser
         res = res && this._set_switch_device();
         res = res && this._set_status_sensor_out(3,4);
         res = res && this._set_time(5,6,7,8);
+        return res;
+    }
+    sh02_package_rev2 ()
+    {
+        var res = true;
+        res = res && this._set_universal_int( [1], 'reason' );
+        res = res && this._set_time(2,3,4,5);
+        res = res && this._set_universal_int( [6],'charge' );
+        res = res && this._set_temperature(7);
+        res = res && this._set_universal_int( [8,9,10,11],'sensor_1' ); //цифровой
+        res = res && this._set_universal_int( [12,13,14,15],'sensor_2' ); //цифровой
+        res = res && this._set_universal_int( [16,17],'sensor_3' ); //Аналоговый
+        res = res && this._set_universal_int( [18,19],'sensor_4' ); //Аналоговый
+        this.sensors.sensor_1=this.sensor_1;
+        this.sensors.sensor_2=this.sensor_2;
+        this.sensors.sensor_3=this.sensor_3;
+        this.sensors.sensor_4=this.sensor_4;
+        res = res && this._set_universal_int( [20], 'type2' );
+        var type2 = this.type2;
+        // if ( type2 == 11 )
+        // {
+        //     res = res && this._set_universal_int( [21], 'reason2' );   
+        //     res = res && this._set_universal_int( [22,23,24,25],'time2' ); 
+        // }
+        if ( type2 == 12 )
+        {
+            res = res && this._set_universal_int( [21], 'len' );
+            var len = this.len;   
+            this._set_1wire2(22,22+len);
+        }
+        else if ( type2 == 13 )
+        {
+            res = res && this._set_universal_int( [21], 'len' );
+            var len = this.len;   
+            this._set_data_b(22,22+len);
+        }
+
         return res;
     }
     sh02_package()
@@ -4164,6 +4365,7 @@ class Parser
         res = res && this._set_universal_boolean(14,'battery_persent_1' );
         res = res && this._set_universal_boolean(15,'battery_persent_2' );
         res = res && this._set_universal_int( [16], 'charge' );
+        res = res && this._set_universal_int( [17], 'charge2' );
 
         return res;
     }
@@ -4399,21 +4601,50 @@ class Parser
             case 1:
                 if (this._set_hex(hex))
                 {
-                     switch(this.type_package) {
-                        case 1: 
-                           return this.si_11_package_1();
-                        break;
-                        case 2:  
-                           return this.si_11_package_2();
-                        break;
-                        case 3:  
-                           console.log('3 package is no longer used' );
-                           return true;
-                        break;
-                        default:
-                            return false;
-                        break;
-                     }
+                    var port = this.port;
+                    if ( this.version >= 2  )
+                    {
+                        if( port == 3 )
+                        {
+                            if(this.type_package == 0) return this.package_settings();
+                        }
+                        else if( port == 2 )
+                        {
+                            return this.si_11_package_rev2();
+                        }
+                        else if( port == 195 && this.type_package == 195 ) 
+                        {
+                            return this.si_21_or_22_package_195_rev2();
+                        }
+                        else if( port == 85 ) 
+                        {
+                            return this.si_21_or_22_package_85_rev2();
+                        }
+                        else if( port == 4 ) 
+                        {
+                            if(this.type_package == 255) return this.package_correction_time();
+                        }
+                    }
+                    else
+                    {
+                        if (port != 2) return false;
+                        switch(this.type_package) 
+                        {
+                            case 1: 
+                                return this.si_11_package_1();
+                            break;
+                            case 2:  
+                                return this.si_11_package_2();
+                            break;
+                            case 3:  
+                                console.log('3 package is no longer used' );
+                                return true;
+                            break;
+                            default:
+                                return false;
+                            break;
+                        }
+                    }
                  }
                  else
                  {
@@ -4423,26 +4654,58 @@ class Parser
             case 2:
                 if (this._set_hex(hex))
                 {
-                     switch(this.type_package) {
-                        case 1: 
-                           return this.si_12_package_1();
-                        break;
-                        case 2:  
-                           return this.si_12_package_2();
-                        break;
-                        case 3:  
-                        //    return this.si_12_package_3();
-                        break;
-                        case 4:
-                            return this.si_12_package_4();
-                        break;
-                        case 5:  
-                           return this.si_12_package_5();
-                        break;
-                        default:
-                            return false;
-                        break;
-                     }
+                    var port = this.port;
+                    if ( currentVersion >= 2  )
+                    {
+                        if( port == 3 )
+                        {
+                            if(this.type_package == 0) return this.package_settings();
+                        }
+                        else if( port == 2 )
+                        {
+                            return this.si_12_package_1_rev2();
+                        }
+                        else if( port == 5 )
+                        {
+                            return this.si_12_package_5_rev2();
+                        }
+                        else if( port == 195 && this.type_package == 195 ) 
+                        {
+                            return this.si_21_or_22_package_195_rev2();
+                        }
+                        else if( port == 85 ) 
+                        {
+                            return this.si_21_or_22_package_85_rev2();
+                        }
+                        else if( port == 4 ) 
+                        {
+                            if(this.type_package == 255) return this.package_correction_time();
+                        }
+                    }
+                    else
+                    {
+                        if (port != 2) return false;
+                        switch(this.type_package) {
+                            case 1: 
+                               return this.si_12_package_1();
+                            break;
+                            case 2:  
+                               return this.si_12_package_2();
+                            break;
+                            case 3:  
+                            //    return this.si_12_package_3();
+                            break;
+                            case 4:
+                                return this.si_12_package_4();
+                            break;
+                            case 5:  
+                               return this.si_12_package_5();
+                            break;
+                            default:
+                                return false;
+                            break;
+                         }
+                    }
                  }
                  else
                  {
@@ -4901,6 +5164,7 @@ class Parser
                 break;
             case 17:
                     //   console.log('Данные gm-1' );
+                    var port = this.port;
                     if (this._set_hex(hex))
                     {
                         if ( this.version == 0 )
@@ -4909,7 +5173,26 @@ class Parser
                         }
                         else
                         {
-                            return this.gm_1_package_rev2();
+                            if( port == 2 )
+                            {
+                                return this.gm_1_package_rev2();
+                            } 
+                            else if( port == 195 && this.type_package == 195 ) 
+                            {
+                                return this.si_21_or_22_package_195_rev2();
+                            }
+                            else if( port == 85 ) 
+                            {
+                                return this.si_21_or_22_package_85_rev2();
+                            }
+                            else if( port == 4 )
+                            {
+                                if(this.type_package == 255) return this.package_correction_time();
+                            }
+                            else if( port == 3 )
+                            {
+                                if(this.type_package == 0) return this.package_settings();
+                            }
                         }
                     }
                     else
@@ -5182,12 +5465,17 @@ class Parser
                 break;
             case 28:
                 // console.log('Данные sh-02' );
-                    if (this._set_hex(hex))
-                    {
-                        if( this.type_package == 1 || this.type_package == 9 ) return this.sh02_package();
-                    }
-                    return false;
-                    break;
+                var port = this.port;
+                if( this.version >= 1 && this._set_hex(hex))
+                {
+                    if( this.type_package == 10 && port == 2 ) return this.sh02_package_rev2();
+                }
+                else if (this._set_hex(hex))
+                {
+                    if( this.type_package == 1 || this.type_package == 9 ) return this.sh02_package();
+                }
+                return false;
+                break;
             case 30:
                 //  console.log('Данные си13 therm' );
                 if (this._set_hex(hex))
@@ -5228,7 +5516,7 @@ class Parser
                 if (  port == 2 ) return this.ss0102_package();
                 else if( port == 4 && this.type_package == 255 ) return this.package_correction_time();
                 else if( port == 3 && this.type_package == 0 ) return this.package_settings();
-                else if( port == 195 && this.type_package == 195 ) return this.si_21_or_22_package_195_rev2();
+                else if( port == 195 && this.type_package == 195 ) return this.package_195_rev3();
                 else if( port == 85 ) return this.si_21_or_22_package_85_rev2();
                 else return false;
                 break;
@@ -5239,4 +5527,5 @@ class Parser
         }
     }
 }
+
 module.exports = Parser;
