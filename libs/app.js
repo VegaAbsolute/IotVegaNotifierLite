@@ -418,6 +418,7 @@ function sendAlarmAdministrator(message)
 //Функция отправки сообщений о тревогах
 function wasAlarm(time,channel,fcnt,devEui,otherInfo)
 {
+  if( typeof channel !== 'object' ) return;
   if (!channel.enable_danger) return; //Если отправка тревожных событий отключена то следует прекратить выполнение данного сценария.
   if ( config.debugMOD ) 
   { 
@@ -916,35 +917,41 @@ function rx(obj)
               });
             }
             otherInfo.model = 'SI-11';
-            if (validNumChannel)
+            if ( dev.version >= 2 )
+            {
+              if(dataDevice.port == 2)
+              {
+                var reason = dataDevice.reason;
+                if (reason >= 1 && reason <= 4 ) 
+                {
+                  numChannel = reason;
+                  channel = dev.get_channel(numChannel);
+                  let validChannel = dataDevice.isObject(channel) && channel.name!==undefined;
+                  if(validChannel)
+                  {
+                    dev.lastDateSMS = currentDate;
+                    let currentSensor = dataDevice.sensors['sensor_'+numChannel];
+                    otherInfo.reasonText += parseReason('si11rev2', dev.version, dataDevice.reason, channel)+'. ';
+                    otherInfo.num = numChannel;
+                    otherInfo.value = currentSensor;
+                    wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
+                  }
+                }
+              }
+            }
+            else if (validNumChannel)
             {
               channel = dev.get_channel(numChannel);
               let validChannel = dataDevice.isObject(channel) && channel.num_channel!==undefined && channel.name!==undefined;
-              if ( dev.version >= 2 )
+              if ( validChannel && dataDevice.type_package == 2 )
               {
-                if(dataDevice.port == 2)
-                {
-                  dev.lastDateSMS = currentDate;
-                  let currentSensor = dataDevice.sensors['sensor_'+numChannel];
-                  otherInfo.reasonText += parseReason('si11rev2', dev.version, dataDevice.reason, channel)+'. ';
-                  otherInfo.num = numChannel;
-                  otherInfo.value = currentSensor;
-                  wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
-                }
+                dev.lastDateSMS = currentDate;
+                let currentSensor = dataDevice.sensors['sensor_'+numChannel];
+                otherInfo.reasonText = currentSensor == 1 ? 'Был замкнут вход' : 'Был разомкнут вход';
+                otherInfo.num = numChannel;
+                otherInfo.value = currentSensor;
+                wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
               }
-              else
-              {
-                if ( validChannel && dataDevice.type_package == 2 )
-                {
-                  dev.lastDateSMS = currentDate;
-                  let currentSensor = dataDevice.sensors['sensor_'+numChannel];
-                  otherInfo.reasonText = currentSensor == 1 ? 'Был замкнут вход' : 'Был разомкнут вход';
-                  otherInfo.num = numChannel;
-                  otherInfo.value = currentSensor;
-                  wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
-                }
-              }
-              
             }
             break;
           }
@@ -964,23 +971,38 @@ function rx(obj)
               });
             }
             otherInfo.model = 'SI-12';
-            if (validNumChannel)
+            
+            if ( dev.version >= 2 )
             {
-              channel = dev.get_channel(numChannel);
-              let validChannel = dataDevice.isObject(channel) && channel.num_channel!==undefined && channel.name!==undefined;
-              if ( dev.version >= 2 )
+              if(dataDevice.port == 2)
               {
-                if(dataDevice.port == 2)
+                if(dataDevice.reason>=1&&dataDevice.reason<=4)
+                {
+                  numChannel = dataDevice.reason;
+                }
+                else if(dataDevice.reason>=5&&dataDevice.reason<=8)
+                {
+                  numChannel = dataDevice.reason-4;
+                }
+                channel = dev.get_channel(numChannel);
+                let validChannel = dataDevice.isObject(channel) && channel.name!==undefined;
+                if(validChannel)
                 {
                   dev.lastDateSMS = currentDate;
                   let currentSensor = dataDevice.sensors['sensor_'+numChannel];
-                  otherInfo.reasonText += parseReason('si12rev2', dev.version, dataDevice.reason, channel)+'. ';
+                  otherInfo.reasonText = parseReason('si12rev2', dev.version, dataDevice.reason, channel)+'. ';
                   otherInfo.num = numChannel;
                   otherInfo.value = currentSensor;
                   wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
                 }
               }
-              else if ( validChannel && dataDevice.type_package == 2 )
+              else if(dataDevice.port == 5 && dataDevice.reason == 1) sendAlarmAdministrator('Изменилось состояние внешнего питания');
+            }
+            else if (validNumChannel)
+            {
+              channel = dev.get_channel(numChannel);
+              let validChannel = dataDevice.isObject(channel) && channel.num_channel!==undefined && channel.name!==undefined;
+              if ( validChannel && dataDevice.type_package == 2 )
               {
                 dev.lastDateSMS = currentDate;
                 let currentSensor = dataDevice.sensors['sensor_'+numChannel];
@@ -1999,7 +2021,7 @@ function rx(obj)
               {
                   dev.lastDateSMS = currentDate;
                   otherInfo.reasonText += parseReason('ss0102', dev.version, otherInfo.reason, channel)+'. ';
-                  wasAlarm(timeServerMs,dev.get_channel(1),obj.fcnt,devEui,otherInfo);
+                  wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
               }
             }
             break;
