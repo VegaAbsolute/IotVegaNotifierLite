@@ -931,7 +931,7 @@ function rx(obj)
                   {
                     dev.lastDateSMS = currentDate;
                     let currentSensor = dataDevice.sensors['sensor_'+numChannel];
-                    otherInfo.reasonText += parseReason('si11rev2', dev.version, dataDevice.reason, channel)+'. ';
+                    otherInfo.reasonText = parseReason('si11rev2', dev.version, dataDevice.reason, channel)+'. ';
                     otherInfo.num = numChannel;
                     otherInfo.value = currentSensor;
                     wasAlarm(timeServerMs,channel,obj.fcnt,devEui,otherInfo);
