@@ -18,7 +18,9 @@ The easiest way to run this application is using the docker.
 
 #### OR
 ### Running the image without docker compose
-- Execute command 
+- Navigate to the directory where your configuration file will be stored `cd /my/config/path` for example
+- Create empty config file with name *config.ini*  `touch config.ini`
+- Execute command:
 ```
 docker run --restart=always -d \
            -v ${PWD}/config.ini:/config.ini \

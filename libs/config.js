@@ -54,7 +54,7 @@ class Config
     this._http = {
       status: true,
       port:4040,
-      ip: '127.0.0.1',
+      ip: '0.0.0.0',
       login: 'iotvega',
       password: 'iotvega',
       key:'0000-0000-0000-ffff'
@@ -550,6 +550,7 @@ class Config
         return false;
       }
     }
+    console.dir(this);
     return true;
   }
   valid()
