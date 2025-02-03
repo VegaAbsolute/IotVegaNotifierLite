@@ -2529,7 +2529,7 @@ function updating()
 {
     //тут нужно проверить что программа не чем не занята
   exec('"git" pull', (err, stdout, stderr) => {
-    if (stdout&&(stdout.indexOf('Already up to date')>-1||stdout.indexOf('Already up-to-date')>-1)||stdout.indexOf('Уже обновлено')>-1)
+    if (stdout&&(stdout.indexOf('Already up to date')>-1||stdout.indexOf('Already up-to-date')>-1)||stdout.indexOf('Уже обновлено')>-1||stdout.indexOf('Уже актуально')>-1)
     {
       if ( config.debugMOD ) 
       {
